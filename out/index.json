@@ -1,31 +1,14 @@
 {
-	"updated_at": "2026-09-04T15:24:08Z",
+	"updated_at": "2026-09-04T15:27:20Z",
 	"bonds": [
 		{
-			"isin": "AT0000A2VB47",
-			"name": "Austria Tf 0% Ot28 Eur",
+			"isin": "EU000A4EG021",
+			"name": "Eu Next Gen Ukr Fa Fx 2.5% Oct30 Eur",
 			"provider": "borsa_italiana",
 			"last_date": "2026-09-03T00:00:00Z",
-			"last_close": 93.8572,
-			"total_quotes": 1009,
-			"json_file": "out/AT0000A2VB47.json",
-			"status": "success"
-		},
-		{
-			"isin": "IT0005559817",
-			"name": "BOT 14/08/2023 - 14/08/2024",
-			"provider": "borsa_italiana",
-			"status": "error",
-			"error": "Could not locate price label in HTML for IT0005559817 (None)."
-		},
-		{
-			"isin": "IT0005565400",
-			"name": "BTP Valore Oct 28",
-			"provider": "borsa_italiana",
-			"last_date": "2026-09-03T00:00:00Z",
-			"last_close": 102.32689,
+			"last_close": 97.25,
 			"total_quotes": 1,
-			"json_file": "out/IT0005565400.json",
+			"json_file": "out/EU000A4EG021.json",
 			"status": "success"
 		}
 	]
