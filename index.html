@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Bond Scraper - Portfolio Performance Feed</title>
+	<meta name="description" content="Daily bond price scraper for Portfolio Performance powered by GitHub Actions.">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<style>
+		:root {
+			--bg-dark: #0f172a;
+			--bg-card: rgba(30, 41, 59, 0.7);
+			--border-color: rgba(255, 255, 255, 0.1);
+			--text-main: #f8fafc;
+			--text-muted: #94a3b8;
+			--accent-blue: #38bdf8;
+			--accent-purple: #818cf8;
+			--accent-emerald: #34d399;
+			--accent-rose: #fb7185;
+			--gradient-primary: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+			--shadow-glow: 0 0 25px rgba(56, 189, 248, 0.15);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			font-family: 'Outfit', sans-serif;
+			background-color: var(--bg-dark);
+			background-image: 
+				radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+				radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.12) 0px, transparent 50%);
+			background-attachment: fixed;
+			color: var(--text-main);
+			min-height: 100vh;
+			padding: 2rem 1rem;
+		}
+
+		.container {
+			max-width: 1200px;
+			margin: 0 auto;
+		}
+
+		header {
+			text-align: center;
+			margin-bottom: 3rem;
+		}
+
+		.badge {
+			display: inline-block;
+			padding: 0.35rem 0.85rem;
+			border-radius: 9999px;
+			background: rgba(56, 189, 248, 0.1);
+			border: 1px solid rgba(56, 189, 248, 0.3);
+			color: var(--accent-blue);
+			font-size: 0.85rem;
+			font-weight: 500;
+			margin-bottom: 1rem;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+		}
+
+		h1 {
+			font-size: 2.75rem;
+			font-weight: 700;
+			background: var(--gradient-primary);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			margin-bottom: 0.75rem;
+			letter-spacing: -0.02em;
+		}
+
+		p.subtitle {
+			color: var(--text-muted);
+			font-size: 1.1rem;
+			max-width: 650px;
+			margin: 0 auto;
+			line-height: 1.6;
+		}
+
+		.stats-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+			gap: 1.25rem;
+			margin-bottom: 2.5rem;
+		}
+
+		.stat-card {
+			background: var(--bg-card);
+			backdrop-filter: blur(12px);
+			border: 1px solid var(--border-color);
+			border-radius: 1rem;
+			padding: 1.5rem;
+			transition: transform 0.2s ease, box-shadow 0.2s ease;
+		}
+
+		.stat-card:hover {
+			transform: translateY(-3px);
+			box-shadow: var(--shadow-glow);
+		}
+
+		.stat-label {
+			font-size: 0.875rem;
+			color: var(--text-muted);
+			margin-bottom: 0.5rem;
+		}
+
+		.stat-value {
+			font-size: 1.75rem;
+			font-weight: 700;
+			color: var(--text-main);
+		}
+
+		.main-content {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 2rem;
+		}
+
+		@media (min-width: 1024px) {
+			.main-content {
+				grid-template-columns: 380px 1fr;
+			}
+		}
+
+		.card {
+			background: var(--bg-card);
+			backdrop-filter: blur(12px);
+			border: 1px solid var(--border-color);
+			border-radius: 1.25rem;
+			padding: 1.75rem;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+		}
+
+		.card-title {
+			font-size: 1.25rem;
+			font-weight: 600;
+			margin-bottom: 1.25rem;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.bond-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.85rem;
+		}
+
+		.bond-item {
+			background: rgba(15, 23, 42, 0.6);
+			border: 1px solid var(--border-color);
+			border-radius: 0.85rem;
+			padding: 1rem 1.15rem;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.bond-item:hover, .bond-item.active {
+			border-color: var(--accent-blue);
+			background: rgba(56, 189, 248, 0.08);
+		}
+
+		.bond-info h4 {
+			font-size: 1rem;
+			font-weight: 600;
+			margin-bottom: 0.25rem;
+		}
+
+		.bond-info p {
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.8rem;
+			color: var(--text-muted);
+		}
+
+		.bond-price-tag {
+			text-align: right;
+		}
+
+		.bond-price {
+			font-size: 1.1rem;
+			font-weight: 700;
+			color: var(--accent-emerald);
+		}
+
+		.bond-date {
+			font-size: 0.75rem;
+			color: var(--text-muted);
+		}
+
+		.pp-setup-box {
+			background: rgba(15, 23, 42, 0.8);
+			border: 1px solid rgba(129, 140, 248, 0.3);
+			border-radius: 0.85rem;
+			padding: 1.25rem;
+			margin-top: 1.5rem;
+		}
+
+		.pp-setup-box h4 {
+			font-size: 0.95rem;
+			font-weight: 600;
+			color: var(--accent-purple);
+			margin-bottom: 0.75rem;
+		}
+
+		.code-field {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			background: rgba(0, 0, 0, 0.4);
+			border: 1px solid var(--border-color);
+			border-radius: 0.5rem;
+			padding: 0.6rem 0.85rem;
+			margin-bottom: 0.65rem;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.825rem;
+		}
+
+		.code-field span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			color: var(--accent-blue);
+		}
+
+		.btn-copy {
+			background: rgba(255, 255, 255, 0.1);
+			border: none;
+			color: var(--text-main);
+			padding: 0.3rem 0.6rem;
+			border-radius: 0.35rem;
+			cursor: pointer;
+			font-size: 0.75rem;
+			transition: background 0.2s ease;
+		}
+
+		.btn-copy:hover {
+			background: var(--accent-blue);
+			color: #000;
+		}
+
+		.chart-container {
+			position: relative;
+			height: 380px;
+			width: 100%;
+			margin-top: 1rem;
+		}
+
+		.status-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			display: inline-block;
+			margin-right: 6px;
+		}
+
+		.status-success { background-color: var(--accent-emerald); }
+		.status-error { background-color: var(--accent-rose); }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<header>
+			<div class="badge">Portfolio Performance Feed</div>
+			<h1>Bond Price Scraper</h1>
+			<p class="subtitle">Quotazioni giornaliere automatiche per Portfolio Performance aggiornate via GitHub Actions.</p>
+		</header>
+
+		<div class="stats-grid">
+			<div class="stat-card">
+				<div class="stat-label">Obbligazioni Tracciate</div>
+				<div class="stat-value" id="stat-total-bonds">-</div>
+			</div>
+			<div class="stat-card">
+				<div class="stat-label">Ultimo Aggiornamento</div>
+				<div class="stat-value" id="stat-last-update" style="font-size: 1.25rem;">-</div>
+			</div>
+			<div class="stat-card">
+				<div class="stat-label">Stato Pipeline</div>
+				<div class="stat-value" style="color: var(--accent-emerald); font-size: 1.4rem;">
+					<span class="status-dot status-success"></span>Attivo
+				</div>
+			</div>
+		</div>
+
+		<div class="main-content">
+			<div class="card">
+				<div class="card-title">
+					<span>Elenco Bond</span>
+				</div>
+				<div class="bond-list" id="bond-list-container">
+					<!-- Loaded via JS -->
+				</div>
+			</div>
+
+			<div class="card">
+				<div class="card-title">
+					<span id="selected-bond-title">Seleziona un Bond</span>
+					<span id="selected-bond-isin" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-muted);"></span>
+				</div>
+
+				<div class="chart-container">
+					<canvas id="priceChart"></canvas>
+				</div>
+
+				<div class="pp-setup-box">
+					<h4>Configurazione Portfolio Performance</h4>
+					<p style="font-size: 0.825rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+						In Portfolio Performance: seleziona il titolo &rarr; <strong>Quotazioni storiche</strong> &rarr; Fornitore: <strong>JSON</strong>.
+					</p>
+
+					<div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">URL JSON:</div>
+					<div class="code-field">
+						<span id="pp-url-val">https://raw.githubusercontent.com/...</span>
+						<button class="btn-copy" onclick="copyText('pp-url-val')">Copia</button>
+					</div>
+
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+						<div>
+							<div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Percorso per Data:</div>
+							<div class="code-field">
+								<span>$.[*].date</span>
+								<button class="btn-copy" onclick="copyValue('$.[*].date')">Copia</button>
+							</div>
+						</div>
+						<div>
+							<div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Percorso per Ultimo:</div>
+							<div class="code-field">
+								<span>$.[*].close</span>
+								<button class="btn-copy" onclick="copyValue('$.[*].close')">Copia</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		let chartInstance = null;
+		let allBonds = [];
+		let currentSelectedIsin = null;
+
+		async function init() {
+			try {
+				const resp = await fetch('out/index.json');
+				const data = await resp.json();
+				
+				document.getElementById('stat-total-bonds').textContent = data.bonds.length;
+				if (data.updated_at) {
+					const d = new Date(data.updated_at);
+					document.getElementById('stat-last-update').textContent = d.toLocaleDateString('it-IT') + ' ' + d.toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'});
+				}
+
+				allBonds = data.bonds;
+				renderBondList(allBonds);
+
+				if (allBonds.length > 0) {
+					const firstValid = allBonds.find(b => b.status === 'success') || allBonds[0];
+					selectBond(firstValid.isin);
+				}
+			} catch (e) {
+				console.error('Error loading index.json:', e);
+				document.getElementById('bond-list-container').innerHTML = '<div style="color: var(--accent-rose); font-size: 0.9rem;">Errore caricamento dati index.json</div>';
+			}
+		}
+
+		function renderBondList(bonds) {
+			const container = document.getElementById('bond-list-container');
+			container.innerHTML = '';
+
+			bonds.forEach(bond => {
+				const item = document.createElement('div');
+				item.className = `bond-item ${bond.isin === currentSelectedIsin ? 'active' : ''}`;
+				item.id = `bond-item-${bond.isin}`;
+				item.onclick = () => selectBond(bond.isin);
+
+				const isSuccess = bond.status === 'success';
+				const priceText = isSuccess ? (bond.last_close ? bond.last_close.toFixed(3) : '-') : 'Errore';
+				const dateText = isSuccess && bond.last_date ? new Date(bond.last_date).toLocaleDateString('it-IT') : '';
+
+				item.innerHTML = `
+					<div class="bond-info">
+						<h4><span class="status-dot ${isSuccess ? 'status-success' : 'status-error'}"></span>${bond.name}</h4>
+						<p>${bond.isin}</p>
+					</div>
+					<div class="bond-price-tag">
+						<div class="bond-price">${priceText}</div>
+						<div class="bond-date">${dateText}</div>
+					</div>
+				`;
+				container.appendChild(item);
+			});
+		}
+
+		async function selectBond(isin) {
+			currentSelectedIsin = isin;
+			const bond = allBonds.find(b => b.isin === isin);
+			if (!bond) return;
+
+			document.querySelectorAll('.bond-item').forEach(el => el.classList.remove('active'));
+			const activeItem = document.getElementById(`bond-item-${isin}`);
+			if (activeItem) activeItem.classList.add('active');
+
+			document.getElementById('selected-bond-title').textContent = bond.name;
+			document.getElementById('selected-bond-isin').textContent = bond.isin;
+
+			// Update PP URL
+			const rawUrl = `${window.location.origin}${window.location.pathname.replace('index.html', '')}out/${isin}.json`;
+			document.getElementById('pp-url-val').textContent = rawUrl;
+
+			if (bond.status === 'success') {
+				loadBondChart(isin);
+			} else {
+				if (chartInstance) chartInstance.destroy();
+			}
+		}
+
+		async function loadBondChart(isin) {
+			try {
+				const resp = await fetch(`out/${isin}.json`);
+				const quotes = await resp.json();
+
+				const labels = quotes.map(q => new Date(q.date).toLocaleDateString('it-IT'));
+				const prices = quotes.map(q => q.close);
+
+				const ctx = document.getElementById('priceChart').getContext('2d');
+				if (chartInstance) chartInstance.destroy();
+
+				chartInstance = new Chart(ctx, {
+					type: 'line',
+					data: {
+						labels: labels,
+						datasets: [{
+							label: 'Prezzo (€)',
+							data: prices,
+							borderColor: '#38bdf8',
+							backgroundColor: 'rgba(56, 189, 248, 0.1)',
+							borderWidth: 2,
+							fill: true,
+							tension: 0.1,
+							pointRadius: prices.length > 100 ? 0 : 3,
+							pointHoverRadius: 5
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							legend: { display: false },
+							tooltip: {
+								mode: 'index',
+								intersect: false
+							}
+						},
+						scales: {
+							x: {
+								grid: { color: 'rgba(255, 255, 255, 0.05)' },
+								ticks: { color: '#94a3b8', maxTicksLimit: 10 }
+							},
+							y: {
+								grid: { color: 'rgba(255, 255, 255, 0.05)' },
+								ticks: { color: '#94a3b8' }
+							}
+						}
+					}
+				});
+			} catch (e) {
+				console.error('Failed to load quotes for chart:', e);
+			}
+		}
+
+		function copyText(elementId) {
+			const text = document.getElementById(elementId).textContent;
+			navigator.clipboard.writeText(text);
+			alert('URL copiato negli appunti!');
+		}
+
+		function copyValue(text) {
+			navigator.clipboard.writeText(text);
+			alert('Valore copiato negli appunti!');
+		}
+
+		window.onload = init;
+	</script>
+</body>
+</html>

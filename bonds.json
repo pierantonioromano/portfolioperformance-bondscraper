@@ -1,0 +1,19 @@
+{
+	"bonds": [
+		{
+			"isin": "AT0000A2VB47",
+			"name": "Austria Tf 0% Ot28 Eur",
+			"provider": "borsa_italiana"
+		},
+		{
+			"isin": "IT0005559817",
+			"name": "BOT 14/08/2023 - 14/08/2024",
+			"provider": "borsa_italiana"
+		},
+		{
+			"isin": "IT0005565400",
+			"name": "BTP Valore Oct 28",
+			"provider": "borsa_italiana"
+		}
+	]
+}
