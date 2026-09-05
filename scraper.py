@@ -95,25 +95,33 @@ def scrape_borsa_italiana(isin: str, custom_url: str = None) -> tuple:
 	if not html:
 		raise ValueError(f"Could not fetch data for ISIN {isin} from any known Borsa Italiana URL.")
 
-	# Extract Price
-	price_str = (
-		extract_td_after_label("Prezzo ufficiale", html)
-		or extract_td_after_label("Prezzo di riferimento", html)
-		or extract_td_after_label("Ultimo prezzo", html)
-	)
+	# Priority 1: Prezzo di riferimento paired with Data di riferimento / Data Pr Riferimento
+	ref_price_str = extract_td_after_label("Prezzo di riferimento", html)
+	ref_date_str = extract_td_after_label("Data di riferimento", html) or extract_td_after_label("Data Pr Riferimento", html)
 
-	# Extract Date
-	date_str = extract_td_after_label("Data Pr Ufficiale", html) or extract_td_after_label(
-		"Data Pr Riferimento", html
-	)
+	if ref_price_str and ref_date_str:
+		price = parse_italian_float(ref_price_str)
+		iso_date = parse_date_to_iso(ref_date_str)
+		return iso_date, price
 
-	if not price_str:
-		raise ValueError(f"Could not locate price label in HTML for {isin} ({successful_url}).")
+	# Priority 2: Prezzo ufficiale paired with Data Pr Ufficiale
+	off_price_str = extract_td_after_label("Prezzo ufficiale", html)
+	off_date_str = extract_td_after_label("Data Pr Ufficiale", html)
 
-	price = parse_italian_float(price_str)
-	iso_date = parse_date_to_iso(date_str)
+	if off_price_str:
+		price = parse_italian_float(off_price_str)
+		iso_date = parse_date_to_iso(off_date_str)
+		return iso_date, price
 
-	return iso_date, price
+	# Priority 3: Ultimo prezzo
+	last_price_str = extract_td_after_label("Ultimo prezzo", html) or extract_td_after_label("Ultimo", html)
+	if last_price_str:
+		price = parse_italian_float(last_price_str)
+		iso_date = parse_date_to_iso(None)
+		return iso_date, price
+
+	raise ValueError(f"Could not locate price label in HTML for {isin} ({successful_url}).")
+
 
 
 def scrape_custom(bond_cfg: dict) -> tuple:
