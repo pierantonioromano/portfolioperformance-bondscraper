@@ -2,7 +2,7 @@ import os
 import re
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import urllib.request
 import urllib.error
 import yaml
@@ -256,8 +256,9 @@ def main():
 	# Write summary index.json
 	summary_path = os.path.join("out", "index.json")
 	with open(summary_path, "w", encoding="utf-8") as f:
-		json.dump({"updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"), "bonds": summary}, f, indent="\t")
+		json.dump({"updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "bonds": summary}, f, indent="\t")
 	logger.info(f"Wrote summary to {summary_path}")
+
 
 
 if __name__ == "__main__":
