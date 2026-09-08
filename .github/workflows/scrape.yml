@@ -2,8 +2,8 @@ name: Scrape Bond Prices
 
 on:
   schedule:
-    # Run at 07:00 UTC (09:00 IT time) and 21:30 UTC (23:30 IT time) every weekday
-    - cron: '30 7,21 * * 1-5'
+    # Run at 16:00 UTC (18:00 IT time - right after 17:35 market close) and 19:00 UTC (21:00 IT time - evening safety catch)
+    - cron: '0 16,19 * * 1-5'
   workflow_dispatch:
 
 permissions:
