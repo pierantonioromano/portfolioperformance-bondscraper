@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import json
 import logging
 from datetime import datetime, timezone
@@ -26,8 +27,17 @@ BORSA_ITALIANA_PATTERNS = [
 
 
 def fetch_url(url: str) -> str:
-	"""Fetch HTML content from a URL with browser-like headers."""
-	req = urllib.request.Request(url, headers=HEADERS)
+	"""Fetch HTML content from a URL with cache-busting parameters and headers."""
+	ts = int(time.time())
+	delimiter = "&" if "?" in url else "?"
+	cache_busting_url = f"{url}{delimiter}_nocache={ts}"
+	headers = {
+		**HEADERS,
+		"Cache-Control": "no-cache, no-store, must-revalidate",
+		"Pragma": "no-cache",
+		"Expires": "0",
+	}
+	req = urllib.request.Request(cache_busting_url, headers=headers)
 	with urllib.request.urlopen(req, timeout=15) as resp:
 		return resp.read().decode("utf-8", errors="ignore")
 
@@ -51,7 +61,7 @@ def extract_td_after_label(label: str, html_content: str) -> str:
 def parse_date_to_iso(date_str: str) -> str:
 	"""Convert DD/MM/YY or DD/MM/YYYY or YYYY-MM-DD to ISO date string YYYY-MM-DDT00:00:00Z."""
 	if not date_str:
-		return datetime.now().strftime("%Y-%m-%dT00:00:00Z")
+		return datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
 
 	clean_date = date_str.strip()
 	parts = clean_date.split("/")
@@ -65,7 +75,7 @@ def parse_date_to_iso(date_str: str) -> str:
 		dt = datetime.fromisoformat(clean_date.replace("Z", ""))
 		return dt.strftime("%Y-%m-%dT00:00:00Z")
 	except ValueError:
-		return datetime.now().strftime("%Y-%m-%dT00:00:00Z")
+		return datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
 
 
 def scrape_borsa_italiana(isin: str, custom_url: str = None) -> tuple:
@@ -108,7 +118,7 @@ def scrape_borsa_italiana(isin: str, custom_url: str = None) -> tuple:
 	off_price_str = extract_td_after_label("Prezzo ufficiale", html)
 	off_date_str = extract_td_after_label("Data Pr Ufficiale", html)
 
-	if off_price_str:
+	if off_price_str and off_date_str:
 		price = parse_italian_float(off_price_str)
 		iso_date = parse_date_to_iso(off_date_str)
 		return iso_date, price
@@ -121,7 +131,6 @@ def scrape_borsa_italiana(isin: str, custom_url: str = None) -> tuple:
 		return iso_date, price
 
 	raise ValueError(f"Could not locate price label in HTML for {isin} ({successful_url}).")
-
 
 
 def scrape_custom(bond_cfg: dict) -> tuple:
@@ -169,14 +178,19 @@ def update_bond_json(isin: str, new_date: str, new_price: float, out_dir: str = 
 			logger.warning(f"Could not read existing file {filepath}, starting fresh: {ex}")
 			quotes = []
 
-	# Check if date already exists in quotes
+	is_changed = False
 	existing_entry = next((q for q in quotes if q.get("date") == new_date), None)
 	if existing_entry:
-		logger.info(f"{isin}: Updating existing entry for {new_date} with close={new_price}")
-		existing_entry["close"] = new_price
+		if existing_entry.get("close") != new_price:
+			logger.info(f"{isin}: Updating existing entry for {new_date} from {existing_entry.get('close')} to {new_price}")
+			existing_entry["close"] = new_price
+			is_changed = True
+		else:
+			logger.info(f"{isin}: Entry for {new_date} already up to date with close={new_price}")
 	else:
 		logger.info(f"{isin}: Appending new entry for {new_date} with close={new_price}")
 		quotes.append({"date": new_date, "close": new_price})
+		is_changed = True
 
 	# Sort by date
 	quotes.sort(key=lambda x: x["date"])
@@ -188,6 +202,7 @@ def update_bond_json(isin: str, new_date: str, new_price: float, out_dir: str = 
 		"total_quotes": len(quotes),
 		"latest_date": quotes[-1]["date"] if quotes else new_date,
 		"latest_close": quotes[-1]["close"] if quotes else new_price,
+		"is_changed": is_changed,
 	}
 
 
@@ -210,6 +225,7 @@ def main():
 	logger.info(f"Loaded {len(bonds)} bonds from {config_path}")
 
 	summary = []
+	any_bond_changed = False
 
 	for bond in bonds:
 		isin = bond.get("isin")
@@ -228,6 +244,9 @@ def main():
 				continue
 
 			res = update_bond_json(isin, iso_date, price)
+			if res.get("is_changed"):
+				any_bond_changed = True
+
 			summary.append(
 				{
 					"isin": isin,
@@ -255,12 +274,26 @@ def main():
 
 	# Write summary index.json
 	summary_path = os.path.join("out", "index.json")
-	with open(summary_path, "w", encoding="utf-8") as f:
-		json.dump({"updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "bonds": summary}, f, indent="\t")
-	logger.info(f"Wrote summary to {summary_path}")
+	existing_updated_at = None
 
+	if os.path.exists(summary_path):
+		try:
+			with open(summary_path, "r", encoding="utf-8") as f:
+				old_summary = json.load(f)
+				existing_updated_at = old_summary.get("updated_at")
+		except Exception:
+			existing_updated_at = None
+
+	# Only update updated_at timestamp if actual bond prices changed or index.json doesn't exist
+	if any_bond_changed or not existing_updated_at:
+		updated_at_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+	else:
+		updated_at_str = existing_updated_at
+
+	with open(summary_path, "w", encoding="utf-8") as f:
+		json.dump({"updated_at": updated_at_str, "bonds": summary}, f, indent="\t")
+	logger.info(f"Wrote summary to {summary_path} (changed={any_bond_changed})")
 
 
 if __name__ == "__main__":
 	main()
-
