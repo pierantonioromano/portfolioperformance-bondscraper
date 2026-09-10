@@ -1,13 +1,13 @@
 {
-	"updated_at": "2026-09-09T15:32:57Z",
+	"updated_at": "2026-09-10T18:48:01Z",
 	"bonds": [
 		{
 			"isin": "EU000A4EG021",
 			"name": "Eu Next Gen Ukr Fa Fx 2.5% Oct30 Eur",
 			"provider": "borsa_italiana",
-			"last_date": "2026-09-08T00:00:00Z",
-			"last_close": 97.15,
-			"total_quotes": 4,
+			"last_date": "2026-09-09T00:00:00Z",
+			"last_close": 96.84,
+			"total_quotes": 5,
 			"json_file": "out/EU000A4EG021.json",
 			"status": "success"
 		}
